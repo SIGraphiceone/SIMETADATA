@@ -5,9 +5,9 @@ from supabase import create_client, Client
 
 # --- ১. আপনার কনফিগারেশন (একদম সঠিক তথ্য বসানো হয়েছে) ---
 SUPABASE_URL = "https://scsjaefaoyjivdxovuqz.supabase.co"
-SUPABASE_KEY = "sb_publishable_U4xs2UDXKEWFBkV9-vLi8g_5uUurrfb"
-SERVICE_ROLE_KEY = "sb_secret_itQ4aTqMPG6PoLh75-KvFw_Z6ZMfH9k"
-GEMINI_API_KEY = "AIzaSyCxRBRwBxB0t7Q4wACXmeshrYLM455pR0U" # <--- এখানে আপনার Gemini API Key দিন
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+SERVICE_ROLE_KEY = st.secrets["SERVICE_ROLE_KEY"]
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 
 # কানেকশন সেটআপ
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
