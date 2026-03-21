@@ -16,7 +16,7 @@ st.markdown("""
     .stAppViewMain { background-color: #050A0F !important; }
     .block-container {
         max-width: 70% !important;
-        padding-top: 1rem !important;
+       padding-top: 300px !important;
         background: transparent !important;
     }
 
