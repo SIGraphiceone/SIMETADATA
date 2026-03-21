@@ -5,119 +5,125 @@ from PIL import Image
 # --- ১. কনফিগারেশন ---
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- ২. লেআউট ফিক্স করার জন্য হার্ডকোর CSS ---
+# --- ২. সাইজ ছোট করার জন্য কাস্টম CSS ---
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
 
 st.markdown("""
     <style>
-    /* মেইন উইন্ডোর গ্যাপ জিরো করা */
+    /* পেজের উপরের গ্যাপ একদম জিরো করা */
     .block-container {
-        padding-top: 1rem !important;
+        padding-top: 0.5rem !important;
+        padding-bottom: 0rem !important;
         max-width: 98% !important;
     }
+    
     .stApp { background-color: #050A0F; }
 
-    /* টাইটেল স্টাইল */
+    /* মেইন টাইটেল আরও ছোট করা হয়েছে */
     .main-title {
         color: white;
         text-align: center;
-        font-size: 30px !important;
-        font-weight: 800;
-        margin-bottom: 0px;
+        font-size: 20px !important;
+        font-weight: 700;
+        margin: 0px !important;
+        padding: 5px 0px !important;
     }
 
-    /* সাইডবার লক করা */
+    /* সাইডবার উইডথ কমানো হয়েছে */
     [data-testid="stSidebar"] {
+        min-width: 260px !important;
+        max-width: 260px !important;
         background-color: #121F2B;
-        border-right: 2px solid #00D1FF;
-        min-width: 300px !important;
     }
 
-    /* প্ল্যাটফর্ম বাটনগুলোকে কাছাকাছি আনা */
-    div.stButton > button {
+    /* বাটনগুলো স্লিম করা হয়েছে */
+    .stButton>button {
         background-color: #1E2D3D !important;
         color: white !important;
-        border: 1px solid #3E4C59 !important;
-        border-radius: 5px;
-        height: 45px;
+        height: 32px !important;
+        font-size: 12px !important;
+        padding: 0px !important;
     }
 
-    /* কন্টাক্ট বাটন ফিক্স */
-    .contact-container {
-        display: flex;
-        justify-content: flex-end;
+    /* আপলোড বক্স ছোট করা */
+    .stFileUploader section {
+        padding: 0px !important;
     }
     
-    /* আউটপুট বক্স ডিজাইন */
+    /* রেজাল্ট কার্ড কমপ্যাক্ট করা */
     .result-card {
         background-color: #121F2B;
         border: 1px solid #3E4C59;
-        border-radius: 10px;
-        padding: 15px;
+        border-radius: 5px;
+        padding: 10px;
+        font-size: 13px !important;
+    }
+    
+    /* কন্টাক্ট বাটন ছোট করা */
+    div.stButton > button:first-child[kind="primary"] {
+        background-color: #FF4B4B !important;
+        height: 30px !important;
+        width: 100px !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
 # --- ৩. সাইডবার ---
 with st.sidebar:
-    st.markdown("<h2 style='color:#00D1FF; text-align:center;'>SIGRAPHICEONE</h2>", unsafe_allow_html=True)
-    st.write("---")
+    st.markdown("<h4 style='color:#00D1FF; text-align:center; margin:0;'>SIGRAPHICEONE</h4>", unsafe_allow_html=True)
     app_mode = st.radio("Mode Selection", ["Metadata", "Image to Prompt"])
     st.write("---")
-    title_words = st.slider("Title word count", 10, 100, 41)
-    keyword_count = st.slider("Tag keyword count", 10, 50, 40)
+    title_words = st.slider("Title limit", 10, 100, 40)
+    keyword_count = st.slider("Tag limit", 10, 50, 40)
 
-# --- ৪. হেডার ---
-h_col1, h_col2 = st.columns([5, 1])
-with h_col1:
+# --- ৪. টাইটেল ও কন্টাক্ট রো ---
+t_col, c_col = st.columns([6, 1])
+with t_col:
     st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
-with h_col2:
-    if st.button("CONTACT", type="primary", use_container_width=True):
-        st.info("📞 Contact: +8801XXXXXXXXX")
+with c_col:
+    if st.button("CONTACT", type="primary"):
+        st.toast("📞 +8801XXXXXXXXX")
 
-# প্ল্যাটফর্ম বাটন (টাইট রো)
-st.write("")
-b1, b2, b3 = st.columns(3)
-with b1: st.button("ADOBE STOCK")
-with b2: st.button("FREEPIK")
-with b3: st.button("SHUTTERSTOCK")
+# প্ল্যাটফর্ম বাটন (টাইট স্পেস)
+p_col1, p_col2, p_col3 = st.columns(3)
+with p_col1: st.button("ADOBE STOCK")
+with p_col2: st.button("FREEPIK")
+with p_col3: st.button("SHUTTERSTOCK")
 
-st.markdown("<hr style='border: 0.5px solid #1E2D3D; margin: 10px 0;'>", unsafe_allow_html=True)
+st.markdown("<hr style='margin: 5px 0; border: 0.1px solid #1E2D3D;'>", unsafe_allow_html=True)
 
-# --- ৫. ওয়ার্কিং এরিয়া (গ্যাপ ফিক্সড) ---
-left, right = st.columns([1, 1], gap="medium")
+# --- ৫. ওয়ার্কিং এরিয়া (স্লিম লুক) ---
+l_col, r_col = st.columns([1, 1.2], gap="small")
 
-with left:
-    st.markdown("### 📷 Upload Image")
-    uploaded_file = st.file_uploader("", type=['jpg', 'jpeg', 'png'], label_visibility="collapsed")
+with l_col:
+    st.write("**📤 Upload**")
+    uploaded_file = st.file_uploader("", type=['jpg','png','jpeg'], label_visibility="collapsed")
     if uploaded_file:
         img = Image.open(uploaded_file)
         st.image(img, use_container_width=True)
 
-with right:
+with r_col:
     if uploaded_file:
-        with st.spinner("Processing..."):
+        with st.spinner("Wait..."):
             try:
                 if app_mode == "Metadata":
-                    prompt = f"Professional SEO Title (max {title_words} words) and {keyword_count} keywords for this stock photo. No serial numbers."
-                    response = model.generate_content([prompt, img])
-                    
+                    p = f"SEO Title (max {title_words} words) and {keyword_count} keywords. Comma separated."
+                    res = model.generate_content([p, img])
                     st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                    st.write("**📝 SEO Title:**")
-                    st.code(response.text.split('\n')[0], language="text")
-                    st.write("**🏷️ Keywords:**")
-                    st.code(response.text, language="text")
+                    st.write("**Title:**")
+                    st.code(res.text.split('\n')[0], language="text")
+                    st.write("**Tags:**")
+                    st.code(res.text, language="text")
                     st.markdown('</div>', unsafe_allow_html=True)
                 else:
-                    prompt_gen = "Write a high-quality AI image generation prompt for this image."
-                    response = model.generate_content([prompt_gen, img])
+                    res = model.generate_content(["Detailed AI prompt for this image.", img])
                     st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                    st.write("**🎨 AI Image Prompt:**")
-                    st.code(response.text.strip(), language="text")
+                    st.write("**AI Prompt:**")
+                    st.code(res.text.strip(), language="text")
                     st.markdown('</div>', unsafe_allow_html=True)
             except Exception as e:
-                st.error(f"Error: {e}")
+                st.error("Limit exceeded or error.")
     else:
-        st.info("👈 Please upload an image to start.")
+        st.info("Upload image to see results.")
