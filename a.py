@@ -56,7 +56,7 @@ st.markdown("""
     /* জেনারেট বাটন হাইলাইট */
     .stButton > button {
         background-color: #162D43 !important;
-        color: black !important;
+        color: Cyan !important;
     }
     .result-card {
         background-color: #121F2B;
