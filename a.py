@@ -26,7 +26,7 @@ def save_user(email, password):
 # --- ২. পেজ সেটআপ ও কনফিগারেশন ---
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
 
-# API কনফিগারেশন (Secrets থেকে কী নেবে)
+# API কনফিগারেশন
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=GEMINI_API_KEY)
@@ -37,15 +37,12 @@ except Exception as e:
 # --- ৩. ডিজাইন ফিক্স (CSS) ---
 st.markdown("""
     <style>
-    /* ব্যাকগ্রাউন্ড ও কন্টেইনার ফিক্স */
     .stAppViewMain { background-color: #050A0F !important; }
     .block-container {
         max-width: 90% !important;
-        padding-top: 150px !important; /* ইন্টারফেস নিচে নামানোর জন্য */
+        padding-top: 100px !important;
         background: transparent !important;
     }
-
-    /* টাইটেল স্টাইল */
     .main-title {
         color: white;
         text-align: center;
@@ -53,21 +50,15 @@ st.markdown("""
         font-weight: 800;
         margin-bottom: 15px !important;
     }
-
-    /* বাটন ডিজাইন */
     div.stButton > button {
         border-radius: 5px;
         font-weight: bold;
     }
-    
-    /* জেনারেট বাটন কালার */
     .stButton > button:first-child {
         background-color: #00D1FF !important;
         color: black !important;
         width: 100% !important;
     }
-
-    /* রেজাল্ট বক্স */
     .result-card {
         background-color: #121F2B;
         border: 1px solid #3E4C59;
@@ -78,7 +69,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- ৪. লগইন এবং সাইনআপ লজিক (Admin Approval) ---
+# --- ৪. লগইন এবং সাইনআপ লজিক (নিখুঁত ইন্ডেন্টেশনসহ) ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -87,9 +78,9 @@ if not st.session_state.logged_in:
     
     with tab1:
         st.subheader("Login to your account")
-        l_email = st.text_input("Email", key="l_email")
-        l_pass = st.text_input("Password", type="password", key="l_pass")
-        if st.button("Login"):
+        l_email = st.text_input("Email Address", key="l_email_in")
+        l_pass = st.text_input("Password", type="password", key="l_pass_in")
+        if st.button("Login", key="l_btn"):
             users = load_users()
             if l_email in users:
                 u_info = users[l_email]
@@ -103,13 +94,13 @@ if not st.session_state.logged_in:
                     st.error("❌ Invalid password.")
             else:
                 st.error("❌ Email not found.")
-        st.stop() # লগইন না করলে নিচের কোডগুলো চলবে না
+        st.stop() 
 
     with tab2:
         st.subheader("Register for Access")
-        s_email = st.text_input("New Email", key="s_email")
-        s_pass = st.text_input("New Password", type="password", key="s_pass")
-        if st.button("Request Access"):
+        s_email = st.text_input("Enter New Email", key="s_email_in")
+        s_pass = st.text_input("Enter New Password", type="password", key="s_pass_in")
+        if st.button("Request Access", key="s_btn"):
             if s_email and s_pass:
                 save_user(s_email, s_pass)
                 st.success("✅ Request sent! Please wait for Admin Approval.")
@@ -117,7 +108,7 @@ if not st.session_state.logged_in:
                 st.error("❌ Please fill all fields.")
         st.stop()
 
-# --- ৫. মেইন অ্যাপ (লগইন সফল হলে এই অংশটি চলবে) ---
+# --- ৫. মেইন অ্যাপ (লগইন সফল হলে চলবে) ---
 with st.sidebar:
     st.markdown("<h3 style='color:#00D1FF; text-align:center;'>SIGRAPHICEONE</h3>", unsafe_allow_html=True)
     if st.button("Logout"):
@@ -129,7 +120,7 @@ with st.sidebar:
     title_words = st.slider("Title limit", 10, 100, 40)
     keyword_count = st.slider("Tag limit", 10, 50, 40)
 
-# হেডার ও টাইটেল
+# হেডার
 t_col, c_col = st.columns([5, 1])
 with t_col:
     st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
@@ -141,11 +132,11 @@ with c_col:
 p_cols = st.columns(3)
 platforms = ["ADOBE STOCK", "FREEPIK", "SHUTTERSTOCK"]
 for i, p in enumerate(platforms):
-    with p_cols[i]: st.button(p, key=f"btn_{p}", use_container_width=True)
+    with p_cols[i]: st.button(p, key=f"p_{p}", use_container_width=True)
 
 st.write("---")
 
-# ওয়ার্ক এরিয়া
+# মেইন এরিয়া
 left, right = st.columns([1, 1.2], gap="medium")
 
 with left:
@@ -177,7 +168,7 @@ with right:
                     st.code(res.text.strip(), language="text")
                     st.markdown('</div>', unsafe_allow_html=True)
             except Exception as e:
-                st.warning("⚠️ API Quota Full or Error. Please wait 30 seconds.")
+                st.warning("⚠️ API Quota Full. Please wait 30 seconds.")
     elif uploaded_file:
         st.info("Click the 'GENERATE NOW' button to see results.")
     else:
