@@ -68,11 +68,11 @@ else:
         st.session_state.logged_in = False
         st.rerun()
 
-    st.title("🚀 AI Metadata Generator")
+    st.title("🚀 SIGRAPHICESONE Metadata Generator")
     
     # ইনপুট অপশন
     platform = st.radio("Select Platform:", ["Adobe Stock", "Freepik", "Shutterstock"], horizontal=True)
-    files = st.file_uploader("Upload Images", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
+    files = st.file_uploader("Upload Images", type=["jpg", "png", "jpeg" ,"vector"], accept_multiple_files=True)
     
     if files:
         if st.button("Generate Now"):
@@ -82,8 +82,8 @@ else:
                 
                 with st.spinner(f"Generating for {f.name}..."):
                     model = genai.GenerativeModel('gemini-2.5-flash')
-                    response = model.generate_content([f"As a {platform} expert, give me a professional SEO Title and 40 relevant Keywords for this stock photo.", img])
-                    
+                   
+                    response = model.generate_content([f"As a {platform} expert, give me a professional SEO Title and 40 relevant Keywords for this stock photo. Important: Do not use any serial numbers or bullets for keywords. Provide them separated by commas only.", img])
                     st.subheader(f"Results for {f.name}")
                     st.code(response.text)
                     st.divider()
