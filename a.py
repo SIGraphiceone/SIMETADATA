@@ -1,14 +1,19 @@
 import streamlit as st
 import json
 import os
+import google.generativeai as genai
+from PIL import Image
 
-# ইউজার ডাটা ফাইল
+# --- ১. ইউজার ডাটা ফাংশন (Database) ---
 USER_DATA_FILE = "users.json"
 
 def load_users():
     if os.path.exists(USER_DATA_FILE):
-        with open(USER_DATA_FILE, "r", encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(USER_DATA_FILE, "r", encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return {}
     return {}
 
 def save_user(email, password):
@@ -17,64 +22,30 @@ def save_user(email, password):
     users[email] = {"password": password, "status": "pending"} 
     with open(USER_DATA_FILE, "w", encoding='utf-8') as f:
         json.dump(users, f, indent=4)
-import google.generativeai as genai
-from PIL import Image
 
-# --- ১. কনফিগারেশন ---
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
-
-# --- ২. মেইন কন্টেইনার বাদ দেওয়া এবং ডিজাইন ফিক্স (CSS) ---
+# --- ২. পেজ সেটআপ ও কনফিগারেশন ---
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
 
+# API কনফিগারেশন (Secrets থেকে কী নেবে)
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except Exception as e:
+    st.error("API Key not found in Streamlit Secrets!")
+
+# --- ৩. ডিজাইন ফিক্স (CSS) ---
 st.markdown("""
-# সেশন স্টেট চেক
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if not st.session_state.logged_in:
-    tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
-    
-    with tab1:
-        l_email = st.text_input("Email", key="l_email")
-        l_pass = st.text_input("Password", type="password", key="l_pass")
-        if st.button("Login"):
-            users = load_users()
-            if l_email in users:
-                user_info = users[l_email]
-                if user_info["password"] == l_pass:
-                    if user_info["status"] == "approved":
-                        st.session_state.logged_in = True
-                        st.rerun()
-                    else:
-                        st.warning("⚠️ Your account is pending admin approval.")
-                else:
-                    st.error("❌ Invalid password.")
-            else:
-                st.error("❌ Email not found.")
-        st.stop() # লগইন না করলে নিচের কোডগুলো দেখাবে না
-
-    with tab2:
-        s_email = st.text_input("New Email", key="s_email")
-        s_pass = st.text_input("New Password", type="password", key="s_pass")
-        if st.button("Request Access"):
-            if s_email and s_pass:
-                save_user(s_email, s_pass)
-                st.success("✅ Request sent! Please wait for Admin Approval.")
-            else:
-                st.error("❌ Please fill all fields.")
-        st.stop()
     <style>
-    /* মেইন সাদা বক্স/কন্টেইনার বাদ দেওয়া */
+    /* ব্যাকগ্রাউন্ড ও কন্টেইনার ফিক্স */
     .stAppViewMain { background-color: #050A0F !important; }
     .block-container {
         max-width: 90% !important;
-       padding-top: 50px !important;
+        padding-top: 150px !important; /* ইন্টারফেস নিচে নামানোর জন্য */
         background: transparent !important;
     }
 
-    /* টাইটেল এবং কন্টাক্ট বাটন পজিশন */
+    /* টাইটেল স্টাইল */
     .main-title {
         color: white;
         text-align: center;
@@ -83,21 +54,20 @@ if not st.session_state.logged_in:
         margin-bottom: 15px !important;
     }
 
-    /* বাটন ডিজাইন (জেনারেট ও কন্টাক্ট) */
+    /* বাটন ডিজাইন */
     div.stButton > button {
         border-radius: 5px;
         font-weight: bold;
     }
     
-    /* জেনারেট বাটনকে হাইলাইট করা */
-    .gen-btn > div > button {
+    /* জেনারেট বাটন কালার */
+    .stButton > button:first-child {
         background-color: #00D1FF !important;
         color: black !important;
         width: 100% !important;
-        height: 50px !important;
     }
 
-    /* রেজাল্ট বক্স আনহাইড করা */
+    /* রেজাল্ট বক্স */
     .result-card {
         background-color: #121F2B;
         border: 1px solid #3E4C59;
@@ -108,15 +78,58 @@ if not st.session_state.logged_in:
     </style>
     """, unsafe_allow_html=True)
 
-# --- ৩. সাইডবার ---
+# --- ৪. লগইন এবং সাইনআপ লজিক (Admin Approval) ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
+    
+    with tab1:
+        st.subheader("Login to your account")
+        l_email = st.text_input("Email", key="l_email")
+        l_pass = st.text_input("Password", type="password", key="l_pass")
+        if st.button("Login"):
+            users = load_users()
+            if l_email in users:
+                u_info = users[l_email]
+                if u_info["password"] == l_pass:
+                    if u_info["status"] == "approved":
+                        st.session_state.logged_in = True
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Your account is pending admin approval.")
+                else:
+                    st.error("❌ Invalid password.")
+            else:
+                st.error("❌ Email not found.")
+        st.stop() # লগইন না করলে নিচের কোডগুলো চলবে না
+
+    with tab2:
+        st.subheader("Register for Access")
+        s_email = st.text_input("New Email", key="s_email")
+        s_pass = st.text_input("New Password", type="password", key="s_pass")
+        if st.button("Request Access"):
+            if s_email and s_pass:
+                save_user(s_email, s_pass)
+                st.success("✅ Request sent! Please wait for Admin Approval.")
+            else:
+                st.error("❌ Please fill all fields.")
+        st.stop()
+
+# --- ৫. মেইন অ্যাপ (লগইন সফল হলে এই অংশটি চলবে) ---
 with st.sidebar:
     st.markdown("<h3 style='color:#00D1FF; text-align:center;'>SIGRAPHICEONE</h3>", unsafe_allow_html=True)
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
+    st.write("---")
     app_mode = st.radio("Mode Selection", ["Metadata", "Image to Prompt"])
     st.write("---")
     title_words = st.slider("Title limit", 10, 100, 40)
     keyword_count = st.slider("Tag limit", 10, 50, 40)
 
-# --- ৪. হেডার ---
+# হেডার ও টাইটেল
 t_col, c_col = st.columns([5, 1])
 with t_col:
     st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
@@ -128,11 +141,11 @@ with c_col:
 p_cols = st.columns(3)
 platforms = ["ADOBE STOCK", "FREEPIK", "SHUTTERSTOCK"]
 for i, p in enumerate(platforms):
-    with p_cols[i]: st.button(p, use_container_width=True)
+    with p_cols[i]: st.button(p, key=f"btn_{p}", use_container_width=True)
 
 st.write("---")
 
-# --- ৫. মেইন ওয়ার্ক এরিয়া ---
+# ওয়ার্ক এরিয়া
 left, right = st.columns([1, 1.2], gap="medium")
 
 with left:
@@ -141,11 +154,7 @@ with left:
     if uploaded_file:
         img = Image.open(uploaded_file)
         st.image(img, use_container_width=True)
-        
-        # জেনারেট বাটন (যা আপনি চেয়েছিলেন)
-        st.markdown('<div class="gen-btn">', unsafe_allow_html=True)
         generate_clicked = st.button("🚀 GENERATE NOW")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 with right:
     if uploaded_file and generate_clicked:
@@ -168,8 +177,7 @@ with right:
                     st.code(res.text.strip(), language="text")
                     st.markdown('</div>', unsafe_allow_html=True)
             except Exception as e:
-                # কোটা এরর মেসেজ
-                st.warning("⚠️ API Quota Full. Please wait 30 seconds.")
+                st.warning("⚠️ API Quota Full or Error. Please wait 30 seconds.")
     elif uploaded_file:
         st.info("Click the 'GENERATE NOW' button to see results.")
     else:
