@@ -1,24 +1,26 @@
 import streamlit as st
 import json
 import os
+import google.generativeai as genai
+from PIL import Image
 
-# ইউজার ডাটা ফাইল
+# --- ১. ইউজার ডাটা ফাংশন ---
 USER_DATA_FILE = "users.json"
 
 def load_users():
-    if os.path.exists(USER_DATA_FILE):
-        with open(USER_DATA_FILE, "r", encoding='utf-8') as f:
-            return json.load(f)
-    return {}
+    if os.path.exists(USER_DATA_FILE):
+        try:
+            with open(USER_DATA_FILE, "r", encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
 
 def save_user(email, password):
-    users = load_users()
-    # নতুন ইউজার ডিফল্টভাবে 'pending' থাকবে
-    users[email] = {"password": password, "status": "pending"} 
-    with open(USER_DATA_FILE, "w", encoding='utf-8') as f:
-        json.dump(users, f, indent=4)
-import google.generativeai as genai
-from PIL import Image
+    users = load_users()
+    users[email] = {"password": password, "status": "pending"} 
+    with open(USER_DATA_FILE, "w", encoding='utf-8') as f:
+        json.dump(users, f, indent=4)
 
 # --- ১. কনফিগারেশন ---
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
@@ -29,6 +31,15 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
 
 st.markdown("""
+    <style>
+    /* মেইন সাদা বক্স/কন্টেইনার বাদ দেওয়া */
+    .stAppViewMain { background-color: #050A0F !important; }
+    .block-container {
+        max-width: 90% !important;
+       padding-top: 50px !important;
+        background: transparent !important;
+    }
+
 # সেশন স্টেট চেক
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -65,15 +76,6 @@ if not st.session_state.logged_in:
             else:
                 st.error("❌ Please fill all fields.")
         st.stop()
-    <style>
-    /* মেইন সাদা বক্স/কন্টেইনার বাদ দেওয়া */
-    .stAppViewMain { background-color: #050A0F !important; }
-    .block-container {
-        max-width: 90% !important;
-       padding-top: 50px !important;
-        background: transparent !important;
-    }
-
     /* টাইটেল এবং কন্টাক্ট বাটন পজিশন */
     .main-title {
         color: white;
@@ -146,6 +148,46 @@ with left:
         st.markdown('<div class="gen-btn">', unsafe_allow_html=True)
         generate_clicked = st.button("🚀 GENERATE NOW")
         st.markdown('</div>', unsafe_allow_html=True)
+
+# --- ৪. লগইন এবং সাইনআপ লজিক (নিখুঁতভাবে সাজানো) ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    # এখানে ট্যাব তৈরি করা হয়েছে
+    choice = st.radio("Select Action:", ["Login", "Sign Up"], horizontal=True)
+    
+    if choice == "Login":
+        st.subheader("🔐 Login")
+        l_email = st.text_input("Email Address", key="unique_login_email")
+        l_pass = st.text_input("Password", type="password", key="unique_login_pass")
+        if st.button("Login Now"):
+            users = load_users()
+            if l_email in users:
+                u_info = users[l_email]
+                if u_info["password"] == l_pass:
+                    if u_info["status"] == "approved":
+                        st.session_state.logged_in = True
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Pending admin approval.")
+                else:
+                    st.error("❌ Wrong password.")
+            else:
+                st.error("❌ Email not found.")
+        st.stop()
+
+    else:
+        st.subheader("📝 Request Access (Sign Up)")
+        s_email = st.text_input("New Email", key="unique_signup_email")
+        s_pass = st.text_input("New Password", type="password", key="unique_signup_pass")
+        if st.button("Send Request"):
+            if s_email and s_pass:
+                save_user(s_email, s_pass)
+                st.success("✅ Request sent! Contact admin for approval.")
+            else:
+                st.error("❌ Please fill all fields.")
+        st.stop()
 
 with right:
     if uploaded_file and generate_clicked:
