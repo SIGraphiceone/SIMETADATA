@@ -15,7 +15,7 @@ st.markdown("""
     /* মেইন সাদা বক্স/কন্টেইনার বাদ দেওয়া */
     .stAppViewMain { background-color: #050A0F !important; }
     .block-container {
-        max-width: 20% !important;
+        max-width: 90% !important;
         padding-top: 1rem !important;
         background: transparent !important;
     }
