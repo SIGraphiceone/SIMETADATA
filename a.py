@@ -1,4 +1,22 @@
 import streamlit as st
+import json
+import os
+
+# ইউজার ডাটা ফাইল
+USER_DATA_FILE = "users.json"
+
+def load_users():
+    if os.path.exists(USER_DATA_FILE):
+        with open(USER_DATA_FILE, "r", encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def save_user(email, password):
+    users = load_users()
+    # নতুন ইউজার ডিফল্টভাবে 'pending' থাকবে
+    users[email] = {"password": password, "status": "pending"} 
+    with open(USER_DATA_FILE, "w", encoding='utf-8') as f:
+        json.dump(users, f, indent=4)
 import google.generativeai as genai
 from PIL import Image
 
@@ -11,6 +29,42 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
 
 st.markdown("""
+# সেশন স্টেট চেক
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
+    
+    with tab1:
+        l_email = st.text_input("Email", key="l_email")
+        l_pass = st.text_input("Password", type="password", key="l_pass")
+        if st.button("Login"):
+            users = load_users()
+            if l_email in users:
+                user_info = users[l_email]
+                if user_info["password"] == l_pass:
+                    if user_info["status"] == "approved":
+                        st.session_state.logged_in = True
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Your account is pending admin approval.")
+                else:
+                    st.error("❌ Invalid password.")
+            else:
+                st.error("❌ Email not found.")
+        st.stop() # লগইন না করলে নিচের কোডগুলো দেখাবে না
+
+    with tab2:
+        s_email = st.text_input("New Email", key="s_email")
+        s_pass = st.text_input("New Password", type="password", key="s_pass")
+        if st.button("Request Access"):
+            if s_email and s_pass:
+                save_user(s_email, s_pass)
+                st.success("✅ Request sent! Please wait for Admin Approval.")
+            else:
+                st.error("❌ Please fill all fields.")
+        st.stop()
     <style>
     /* মেইন সাদা বক্স/কন্টেইনার বাদ দেওয়া */
     .stAppViewMain { background-color: #050A0F !important; }
