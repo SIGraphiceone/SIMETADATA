@@ -48,6 +48,7 @@ st.markdown("""
         font-weight: 800;
         margin-bottom: 15px !important;
     }
+/* বাটন ডিজাইন (জেনারেট ও কন্টাক্ট) */
     div.stButton > button {
         border-radius: 5px;
         font-weight: bold;
