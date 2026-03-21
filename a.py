@@ -104,13 +104,14 @@ with st.sidebar:
 
 st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
 
-# প্ল্যাটফর্ম বাটন (৩ কলাম)
+# প্ল্যাটফর্ম বাটন
 p_cols = st.columns(3)
 platforms = ["ADOBE STOCK", "FREEPIK", "SHUTTERSTOCK"]
 for i, p in enumerate(platforms):
-    with p_cols[i]: st.button(p)
+    with p_cols[i]: st.button(p, key=f"plat_{p}", use_container_width=True)
 
 st.write("---")
+
 left, right = st.columns([1, 1.2], gap="medium")
 
 with left:
@@ -120,7 +121,6 @@ with left:
         img = Image.open(uploaded_file)
         st.image(img, use_container_width=True)
         generate_clicked = st.button("🚀 GENERATE NOW")
-
 with right:
     if uploaded_file and 'generate_clicked' in locals() and generate_clicked:
         with st.spinner("AI is working..."):
