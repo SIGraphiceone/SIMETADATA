@@ -1,26 +1,32 @@
 import streamlit as st
-import json
-import os
-import google.generativeai as genai
-from PIL import Image
+from supabase import create_client, Client
 
-# --- ১. ইউজার ডাটা ফাংশন ---
-USER_DATA_FILE = "users.json"
+# --- সুপাবেস কানেকশন (নতুন) ---
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(url, key)
 
 def load_users():
-    if os.path.exists(USER_DATA_FILE):
-        try:
-            with open(USER_DATA_FILE, "r", encoding='utf-8') as f:
-                return json.load(f)
-        except:
-            return {}
-    return {}
+    try:
+        # সুপাবেস টেবিল থেকে ডাটা আনা
+        response = supabase.table("users").select("*").execute()
+        users_dict = {}
+        for user in response.data:
+            users_dict[user['email']] = {
+                "password": user['password'], 
+                "status": user['status']
+            }
+        return users_dict
+    except Exception as e:
+        return {}
 
 def save_user(email, password):
-    users = load_users()
-    users[email] = {"password": password, "status": "pending"} 
-    with open(USER_DATA_FILE, "w", encoding='utf-8') as f:
-        json.dump(users, f, indent=4)
+    # নতুন ইউজার সুপাবেসে জমা দেওয়া
+    try:
+        data = {"email": email, "password": password, "status": "pending"}
+        supabase.table("users").insert(data).execute()
+    except Exception as e:
+        st.error(f"Error saving user: {e}")
 
 # --- ২. কনফিগারেশন ---
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
