@@ -4,7 +4,7 @@ import os
 import google.generativeai as genai
 from PIL import Image
 
-# --- ১. ইউজার ডাটা ফাংশন (Database) ---
+# --- ১. ইউজার ডাটা ফাংশন ---
 USER_DATA_FILE = "users.json"
 
 def load_users():
@@ -18,29 +18,27 @@ def load_users():
 
 def save_user(email, password):
     users = load_users()
-    # নতুন ইউজার ডিফল্টভাবে 'pending' থাকবে
     users[email] = {"password": password, "status": "pending"} 
     with open(USER_DATA_FILE, "w", encoding='utf-8') as f:
         json.dump(users, f, indent=4)
 
-# --- ২. পেজ সেটআপ ও কনফিগারেশন ---
+# --- ২. পেজ কনফিগারেশন ---
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
 
-# API কনফিগারেশন
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
-    st.error("API Key not found in Streamlit Secrets!")
+    st.error("API Key missing in Secrets!")
 
-# --- ৩. ডিজাইন ফিক্স (CSS) ---
+# --- ৩. ডিজাইন (CSS) ---
 st.markdown("""
     <style>
     .stAppViewMain { background-color: #050A0F !important; }
     .block-container {
         max-width: 90% !important;
-        padding-top: 100px !important;
+        padding-top: 80px !important;
         background: transparent !important;
     }
     .main-title {
@@ -50,37 +48,31 @@ st.markdown("""
         font-weight: 800;
         margin-bottom: 15px !important;
     }
-    div.stButton > button {
-        border-radius: 5px;
-        font-weight: bold;
+    /* ইনপুট বক্সের টেক্সট কালার ঠিক করা */
+    input {
+        color: white !important;
     }
-    .stButton > button:first-child {
+    div.stButton > button:first-child {
         background-color: #00D1FF !important;
         color: black !important;
         width: 100% !important;
     }
-    .result-card {
-        background-color: #121F2B;
-        border: 1px solid #3E4C59;
-        border-radius: 10px;
-        padding: 20px;
-        margin-top: 10px;
-    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- ৪. লগইন এবং সাইনআপ লজিক (নিখুঁত ইন্ডেন্টেশনসহ) ---
+# --- ৪. লগইন এবং সাইনআপ লজিক (নিখুঁতভাবে সাজানো) ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
+    # এখানে ট্যাব তৈরি করা হয়েছে
+    choice = st.radio("Select Action:", ["Login", "Sign Up"], horizontal=True)
     
-    with tab1:
-        st.subheader("Login to your account")
-        l_email = st.text_input("Email Address", key="l_email_in")
-        l_pass = st.text_input("Password", type="password", key="l_pass_in")
-        if st.button("Login", key="l_btn"):
+    if choice == "Login":
+        st.subheader("🔐 Login")
+        l_email = st.text_input("Email Address", key="unique_login_email")
+        l_pass = st.text_input("Password", type="password", key="unique_login_pass")
+        if st.button("Login Now"):
             users = load_users()
             if l_email in users:
                 u_info = users[l_email]
@@ -89,26 +81,26 @@ if not st.session_state.logged_in:
                         st.session_state.logged_in = True
                         st.rerun()
                     else:
-                        st.warning("⚠️ Your account is pending admin approval.")
+                        st.warning("⚠️ Pending admin approval.")
                 else:
-                    st.error("❌ Invalid password.")
+                    st.error("❌ Wrong password.")
             else:
                 st.error("❌ Email not found.")
-        st.stop() 
+        st.stop()
 
-    with tab2:
-        st.subheader("Register for Access")
-        s_email = st.text_input("Enter New Email", key="s_email_in")
-        s_pass = st.text_input("Enter New Password", type="password", key="s_pass_in")
-        if st.button("Request Access", key="s_btn"):
+    else:
+        st.subheader("📝 Request Access (Sign Up)")
+        s_email = st.text_input("New Email", key="unique_signup_email")
+        s_pass = st.text_input("New Password", type="password", key="unique_signup_pass")
+        if st.button("Send Request"):
             if s_email and s_pass:
                 save_user(s_email, s_pass)
-                st.success("✅ Request sent! Please wait for Admin Approval.")
+                st.success("✅ Request sent! Contact admin for approval.")
             else:
                 st.error("❌ Please fill all fields.")
         st.stop()
 
-# --- ৫. মেইন অ্যাপ (লগইন সফল হলে চলবে) ---
+# --- ৫. মেইন অ্যাপ (লগইন হলে চলবে) ---
 with st.sidebar:
     st.markdown("<h3 style='color:#00D1FF; text-align:center;'>SIGRAPHICEONE</h3>", unsafe_allow_html=True)
     if st.button("Logout"):
@@ -116,27 +108,11 @@ with st.sidebar:
         st.rerun()
     st.write("---")
     app_mode = st.radio("Mode Selection", ["Metadata", "Image to Prompt"])
-    st.write("---")
     title_words = st.slider("Title limit", 10, 100, 40)
     keyword_count = st.slider("Tag limit", 10, 50, 40)
 
-# হেডার
-t_col, c_col = st.columns([5, 1])
-with t_col:
-    st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
-with c_col:
-    if st.button("CONTACT", type="primary", use_container_width=True):
-        st.toast("📞 Contact: +8801XXXXXXXXX")
+st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
 
-# প্ল্যাটফর্ম বাটন
-p_cols = st.columns(3)
-platforms = ["ADOBE STOCK", "FREEPIK", "SHUTTERSTOCK"]
-for i, p in enumerate(platforms):
-    with p_cols[i]: st.button(p, key=f"p_{p}", use_container_width=True)
-
-st.write("---")
-
-# মেইন এরিয়া
 left, right = st.columns([1, 1.2], gap="medium")
 
 with left:
@@ -154,22 +130,9 @@ with right:
                 if app_mode == "Metadata":
                     prompt = f"Give me a Professional SEO Title (max {title_words} words) and {keyword_count} keywords. Separated by commas."
                     res = model.generate_content([prompt, img])
-                    
-                    st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                    st.write("**📝 SEO Title:**")
-                    st.code(res.text.split('\n')[0], language="text")
-                    st.write("**🏷️ Tag Keywords:**")
                     st.code(res.text, language="text")
-                    st.markdown('</div>', unsafe_allow_html=True)
                 else:
                     res = model.generate_content(["Create a midjourney style prompt for this image.", img])
-                    st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                    st.write("**🎨 AI Image Prompt:**")
                     st.code(res.text.strip(), language="text")
-                    st.markdown('</div>', unsafe_allow_html=True)
-            except Exception as e:
-                st.warning("⚠️ API Quota Full. Please wait 30 seconds.")
-    elif uploaded_file:
-        st.info("Click the 'GENERATE NOW' button to see results.")
-    else:
-        st.info("Upload an image to get started.")
+            except:
+                st.warning("⚠️ API Quota Full.")
