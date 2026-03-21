@@ -22,145 +22,62 @@ def save_user(email, password):
     with open(USER_DATA_FILE, "w", encoding='utf-8') as f:
         json.dump(users, f, indent=4)
 
-# --- ১. কনফিগারেশন ---
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
-
-# --- ২. মেইন কন্টেইনার বাদ দেওয়া এবং ডিজাইন ফিক্স (CSS) ---
+# --- ২. কনফিগারেশন ---
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
 
+try:
+    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+except:
+    st.error("API Key missing in Secrets!")
+
+# --- ৩. ডিজাইন ফিক্স (CSS) ---
 st.markdown("""
-    <style>
-    /* মেইন সাদা বক্স/কন্টেইনার বাদ দেওয়া */
-    .stAppViewMain { background-color: #050A0F !important; }
-    .block-container {
-        max-width: 90% !important;
-       padding-top: 50px !important;
-        background: transparent !important;
-    }
+    <style>
+    .stAppViewMain { background-color: #050A0F !important; }
+    .block-container {
+        max-width: 90% !important;
+        padding-top: 50px !important;
+        background: transparent !important;
+    }
+    .main-title {
+        color: white;
+        text-align: center;
+        font-size: 26px !important;
+        font-weight: 800;
+        margin-bottom: 15px !important;
+    }
+    div.stButton > button {
+        border-radius: 5px;
+        font-weight: bold;
+    }
+    /* জেনারেট বাটন হাইলাইট */
+    .stButton > button {
+        background-color: #00D1FF !important;
+        color: black !important;
+    }
+    .result-card {
+        background-color: #121F2B;
+        border: 1px solid #3E4C59;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 10px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# সেশন স্টেট চেক
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-
-if not st.session_state.logged_in:
-    tab1, tab2 = st.tabs(["🔐 Login", "📝 Sign Up"])
-    
-    with tab1:
-        l_email = st.text_input("Email", key="l_email")
-        l_pass = st.text_input("Password", type="password", key="l_pass")
-        if st.button("Login"):
-            users = load_users()
-            if l_email in users:
-                user_info = users[l_email]
-                if user_info["password"] == l_pass:
-                    if user_info["status"] == "approved":
-                        st.session_state.logged_in = True
-                        st.rerun()
-                    else:
-                        st.warning("⚠️ Your account is pending admin approval.")
-                else:
-                    st.error("❌ Invalid password.")
-            else:
-                st.error("❌ Email not found.")
-        st.stop() # লগইন না করলে নিচের কোডগুলো দেখাবে না
-
-    with tab2:
-        s_email = st.text_input("New Email", key="s_email")
-        s_pass = st.text_input("New Password", type="password", key="s_pass")
-        if st.button("Request Access"):
-            if s_email and s_pass:
-                save_user(s_email, s_pass)
-                st.success("✅ Request sent! Please wait for Admin Approval.")
-            else:
-                st.error("❌ Please fill all fields.")
-        st.stop()
-    /* টাইটেল এবং কন্টাক্ট বাটন পজিশন */
-    .main-title {
-        color: white;
-        text-align: center;
-        font-size: 26px !important;
-        font-weight: 800;
-        margin-bottom: 15px !important;
-    }
-
-    /* বাটন ডিজাইন (জেনারেট ও কন্টাক্ট) */
-    div.stButton > button {
-        border-radius: 5px;
-        font-weight: bold;
-    }
-    
-    /* জেনারেট বাটনকে হাইলাইট করা */
-    .gen-btn > div > button {
-        background-color: #00D1FF !important;
-        color: black !important;
-        width: 100% !important;
-        height: 50px !important;
-    }
-
-    /* রেজাল্ট বক্স আনহাইড করা */
-    .result-card {
-        background-color: #121F2B;
-        border: 1px solid #3E4C59;
-        border-radius: 10px;
-        padding: 20px;
-        margin-top: 10px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- ৩. সাইডবার ---
-with st.sidebar:
-    st.markdown("<h3 style='color:#00D1FF; text-align:center;'>SIGRAPHICEONE</h3>", unsafe_allow_html=True)
-    app_mode = st.radio("Mode Selection", ["Metadata", "Image to Prompt"])
-    st.write("---")
-    title_words = st.slider("Title limit", 10, 100, 40)
-    keyword_count = st.slider("Tag limit", 10, 50, 40)
-
-# --- ৪. হেডার ---
-t_col, c_col = st.columns([5, 1])
-with t_col:
-    st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
-with c_col:
-    if st.button("CONTACT", type="primary", use_container_width=True):
-        st.toast("📞 Contact: +8801XXXXXXXXX")
-
-# প্ল্যাটফর্ম বাটন
-p_cols = st.columns(3)
-platforms = ["ADOBE STOCK", "FREEPIK", "SHUTTERSTOCK"]
-for i, p in enumerate(platforms):
-    with p_cols[i]: st.button(p, use_container_width=True)
-
-st.write("---")
-
-# --- ৫. মেইন ওয়ার্ক এরিয়া ---
-left, right = st.columns([1, 1.2], gap="medium")
-
-with left:
-    st.markdown("##### 📤 Upload Image")
-    uploaded_file = st.file_uploader("", type=['jpg','png','jpeg'], label_visibility="collapsed")
-    if uploaded_file:
-        img = Image.open(uploaded_file)
-        st.image(img, use_container_width=True)
-        
-        # জেনারেট বাটন (যা আপনি চেয়েছিলেন)
-        st.markdown('<div class="gen-btn">', unsafe_allow_html=True)
-        generate_clicked = st.button("🚀 GENERATE NOW")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# --- ৪. লগইন এবং সাইনআপ লজিক (নিখুঁতভাবে সাজানো) ---
+# --- ৪. লগইন ও সেশন স্টেট লজিক ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    # এখানে ট্যাব তৈরি করা হয়েছে
     choice = st.radio("Select Action:", ["Login", "Sign Up"], horizontal=True)
     
     if choice == "Login":
         st.subheader("🔐 Login")
-        l_email = st.text_input("Email Address", key="unique_login_email")
-        l_pass = st.text_input("Password", type="password", key="unique_login_pass")
+        l_email = st.text_input("Email Address", key="login_email")
+        l_pass = st.text_input("Password", type="password", key="login_pass")
         if st.button("Login Now"):
             users = load_users()
             if l_email in users:
@@ -179,40 +96,75 @@ if not st.session_state.logged_in:
 
     else:
         st.subheader("📝 Request Access (Sign Up)")
-        s_email = st.text_input("New Email", key="unique_signup_email")
-        s_pass = st.text_input("New Password", type="password", key="unique_signup_pass")
+        s_email = st.text_input("New Email", key="signup_email")
+        s_pass = st.text_input("New Password", type="password", key="signup_pass")
         if st.button("Send Request"):
             if s_email and s_pass:
                 save_user(s_email, s_pass)
-                st.success("✅ Request sent! Contact admin for approval.")
+                st.success("✅ Request sent! Wait for approval.")
             else:
                 st.error("❌ Please fill all fields.")
         st.stop()
 
+# --- ৫. মেইন অ্যাপ (লগইন সফল হলে এটি চলবে) ---
+with st.sidebar:
+    st.markdown("<h3 style='color:#00D1FF; text-align:center;'>SIGRAPHICEONE</h3>", unsafe_allow_html=True)
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.rerun()
+    st.write("---")
+    app_mode = st.radio("Mode Selection", ["Metadata", "Image to Prompt"])
+    title_words = st.slider("Title limit", 10, 100, 40)
+    keyword_count = st.slider("Tag limit", 10, 50, 40)
+
+# হেডার
+t_col, c_col = st.columns([5, 1])
+with t_col:
+    st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
+with c_col:
+    if st.button("CONTACT", type="primary", use_container_width=True):
+        st.toast("📞 Contact: +8801XXXXXXXXX")
+
+# প্ল্যাটফর্ম বাটন
+p_cols = st.columns(3)
+platforms = ["ADOBE STOCK", "FREEPIK", "SHUTTERSTOCK"]
+for i, p in enumerate(platforms):
+    with p_cols[i]: st.button(p, key=f"plat_{p}", use_container_width=True)
+
+st.write("---")
+
+left, right = st.columns([1, 1.2], gap="medium")
+
+with left:
+    st.markdown("##### 📤 Upload Image")
+    uploaded_file = st.file_uploader("", type=['jpg','png','jpeg'], label_visibility="collapsed")
+    if uploaded_file:
+        img = Image.open(uploaded_file)
+        st.image(img, use_container_width=True)
+        generate_clicked = st.button("🚀 GENERATE NOW")
+
 with right:
-    if uploaded_file and generate_clicked:
-        with st.spinner("AI is working..."):
-            try:
-                if app_mode == "Metadata":
-                    prompt = f"Give me a Professional SEO Title (max {title_words} words) and {keyword_count} keywords. Separated by commas."
-                    res = model.generate_content([prompt, img])
-                    
-                    st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                    st.write("**📝 SEO Title:**")
-                    st.code(res.text.split('\n')[0], language="text")
-                    st.write("**🏷️ Tag Keywords:**")
-                    st.code(res.text, language="text")
-                    st.markdown('</div>', unsafe_allow_html=True)
-                else:
-                    res = model.generate_content(["Create a midjourney style prompt for this image.", img])
-                    st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                    st.write("**🎨 AI Image Prompt:**")
-                    st.code(res.text.strip(), language="text")
-                    st.markdown('</div>', unsafe_allow_html=True)
-            except Exception as e:
-                # কোটা এরর মেসেজ
-                st.warning("⚠️ API Quota Full. Please wait 30 seconds.")
-    elif uploaded_file:
-        st.info("Click the 'GENERATE NOW' button to see results.")
-    else:
-        st.info("Upload an image to get started.")codi ti mone hoi vul vabe update hoyece dhako  to
+    if uploaded_file and 'generate_clicked' in locals() and generate_clicked:
+        with st.spinner("AI is working..."):
+            try:
+                if app_mode == "Metadata":
+                    prompt = f"Give me a Professional SEO Title (max {title_words} words) and {keyword_count} keywords. Separated by commas."
+                    res = model.generate_content([prompt, img])
+                    st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                    st.write("**📝 SEO Title:**")
+                    st.code(res.text.split('\n')[0], language="text")
+                    st.write("**🏷️ Tag Keywords:**")
+                    st.code(res.text, language="text")
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    res = model.generate_content(["Create a midjourney style prompt for this image.", img])
+                    st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                    st.write("**🎨 AI Image Prompt:**")
+                    st.code(res.text.strip(), language="text")
+                    st.markdown('</div>', unsafe_allow_html=True)
+            except:
+                st.warning("⚠️ API Quota Full. Wait 30 seconds.")
+    elif uploaded_file:
+        st.info("Click 'GENERATE NOW' to see results.")
+    else:
+        st.info("Upload an image to start.")
