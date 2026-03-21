@@ -1,89 +1,147 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
-from supabase import create_client, Client
 
-# --- ১. আপনার কনফিগারেশন (একদম সঠিক তথ্য বসানো হয়েছে) ---
-SUPABASE_URL = "https://scsjaefaoyjivdxovuqz.supabase.co"
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-SERVICE_ROLE_KEY = st.secrets["SERVICE_ROLE_KEY"]
+# --- ১. কনফিগারেশন (Gemini 2.5 Flash) ---
+# নিশ্চিত করুন যে আপনার Streamlit Cloud Secrets-এ GEMINI_API_KEY সেভ করা আছে
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-
-# কানেকশন সেটআপ
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-admin_supabase: Client = create_client(SUPABASE_URL, SERVICE_ROLE_KEY)
 genai.configure(api_key=GEMINI_API_KEY)
 
-st.set_page_config(page_title="Stock Metadata AI - Pro", layout="wide")
+# আপনার রিকোয়েস্ট অনুযায়ী gemini-2.5-flash মডেল সেট করা হয়েছে
+model = genai.GenerativeModel('gemini-2.5-flash')
 
-# সেশন স্টেট (লগইন মনে রাখার জন্য)
-if 'logged_in' not in st.session_state:
-    st.session_state.logged_in = False
+# --- ২. পেজ সেটআপ এবং ডিজাইন (CSS) ---
+st.set_page_config(page_title="SIGRAPHICEONE METADATA AI", layout="wide")
 
-# --- ২. অ্যাডমিন কন্ট্রোল প্যানেল ---
-if st.query_params.get("admin") == "true":
-    st.title("👨‍✈️ Admin Approval Dashboard")
-    users = admin_supabase.table("users_list").select("*").execute()
-    if users.data:
-        for user in users.data:
-            col1, col2, col3 = st.columns([3, 2, 2])
-            col1.write(user['email'])
-            col2.write(f"Status: {user['status']}")
-            if user['status'] == 'pending':
-                if col3.button("Approve", key=user['email']):
-                    admin_supabase.table("users_list").update({"status": "approved"}).eq("email", user['email']).execute()
-                    st.rerun()
-    st.stop()
+st.markdown("""
+    <style>
+    /* মেইন কন্টেইনার এবং ব্যাকগ্রাউন্ড */
+    .block-container { padding-top: 1.5rem; max-width: 95% !important; }
+    .stApp { background-color: #050A0F; color: white; }
+    
+    /* সাইডবার স্টাইল */
+    [data-testid="stSidebar"] {
+        background-color: #121F2B;
+        border-right: 2px solid #00D1FF;
+        width: 320px !important;
+    }
 
-# --- ৩. লগইন ও সাইন-আপ সিস্টেম ---
-if not st.session_state.logged_in:
-    tab1, tab2 = st.tabs(["Login", "Sign Up"])
-    with tab2:
-        st.subheader("নতুন অ্যাকাউন্ট খুলুন")
-        reg_email = st.text_input("Email", key="r_email").strip()
-        reg_pass = st.text_input("Password", type="password", key="r_pass")
-        if st.button("Register"):
+    /* টাইটেল এবং বাটন */
+    .main-title {
+        color: white;
+        text-align: center;
+        font-size: 38px !important;
+        font-weight: 800;
+        letter-spacing: 2px;
+        margin-bottom: 0px;
+    }
+    
+    .stButton>button {
+        width: 100%;
+        background-color: #1E2D3D;
+        color: white;
+        border: 1px solid #3E4C59;
+        border-radius: 8px;
+        padding: 12px;
+        font-weight: bold;
+    }
+    
+    /* কন্টাক্ট বাটন */
+    div.stButton > button:first-child[kind="primary"] {
+        background-color: #FF4B4B;
+        border: none;
+        width: 140px;
+    }
+
+    /* আউটপুট কার্ড ডিজাইন */
+    .output-card {
+        background-color: #121F2B;
+        border: 1px solid #3E4C59;
+        border-radius: 15px;
+        padding: 20px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- ৩. সাইডবার লজিক (Mode Selection) ---
+with st.sidebar:
+    st.markdown("<h2 style='color:#00D1FF; text-align:center;'>SIGRAPHICEONE</h2>", unsafe_allow_html=True)
+    st.write("---")
+    
+    st.markdown("### 🛠️ Mode Selection")
+    # ইউজার Metadata অথবা Image to Prompt সিলেক্ট করতে পারবেন
+    app_mode = st.radio("", ["Metadata", "Image to Prompt"], label_visibility="collapsed")
+    
+    st.write("---")
+    # স্লাইডার কন্ট্রোল
+    title_words = st.slider("Title word count", 10, 100, 20)
+    keyword_count = st.slider("Tag keyword count", 10, 50, 40)
+
+# --- ৪. হেডার এবং কন্টাক্ট ---
+col_title, col_contact = st.columns([5, 1])
+with col_title:
+    st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
+with col_contact:
+    if st.button("CONTACT", type="primary"):
+        st.toast("📞 Contact me at: +8801XXXXXXXXX") # আপনার ফোন নম্বর এখানে দিন
+
+# --- ৫. প্ল্যাটফর্ম সিলেকশন বাটন ---
+st.write("")
+p1, p2, p3 = st.columns(3)
+platform = "Adobe Stock"
+with p1: 
+    if st.button("ADOBE STOCK"): platform = "Adobe Stock"
+with p2: 
+    if st.button("FREEPIK"): platform = "Freepik"
+with p3: 
+    if st.button("SHUTTERSTOCK"): platform = "Shutterstock"
+
+st.markdown("<hr style='border: 0.5px solid #1E2D3D; margin: 20px 0;'>", unsafe_allow_html=True)
+
+# --- ৬. মেইন ওয়ার্ক এরিয়া (Upload & Results) ---
+left_col, right_col = st.columns([1.3, 1], gap="large")
+
+with left_col:
+    st.markdown("### 📤 Upload Image")
+    uploaded_file = st.file_uploader("Choose Files (JPG, PNG, JPEG)", type=['jpg', 'jpeg', 'png'], label_visibility="collapsed")
+    
+    if uploaded_file:
+        img = Image.open(uploaded_file)
+        st.image(img, caption="Preview", use_container_width=True)
+
+with right_col:
+    if uploaded_file:
+        st.markdown('<div class="output-card">', unsafe_allow_html=True)
+        st.markdown(f"### ✨ {app_mode} Result")
+        
+        with st.spinner("AI is thinking..."):
             try:
-                admin_supabase.table("users_list").insert({"email": reg_email, "password": str(reg_pass), "status": "pending"}).execute()
-                st.success("রেজিস্ট্রেশন হয়েছে! এবার ?admin=true দিয়ে নিজেকে Approve করুন।")
-            except: st.error("এই ইমেইল দিয়ে আগেই অ্যাকাউন্ট খোলা হয়েছে।")
-
-    with tab1:
-        st.subheader("লগইন করুন")
-        login_email = st.text_input("Email", key="l_email").strip()
-        login_pass = st.text_input("Password", type="password", key="l_pass")
-        if st.button("Login"):
-            res = admin_supabase.table("users_list").select("*").eq("email", login_email).execute()
-            if res.data and str(res.data[0]['password']) == str(login_pass):
-                if res.data[0]['status'] == 'approved':
-                    st.session_state.logged_in = True
-                    st.rerun()
-                else: st.warning("আপনার অ্যাকাউন্ট এখনও Pending!")
-            else: st.error("ভুল ইমেইল বা পাসওয়ার্ড!")
-
-# --- ৪. আসল অ্যাপ (লগইন করার পর যা দেখা যাবে) ---
-else:
-    # সাইডবারে লগআউট বাটন
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.rerun()
-
-    st.title("🚀 SIGRAPHICESONE Metadata Generator")
-    
-    # ইনপুট অপশন
-    platform = st.radio("Select Platform:", ["Adobe Stock", "Freepik", "Shutterstock"], horizontal=True)
-    files = st.file_uploader("Upload Images", type=["jpg", "png", "jpeg" ,"vector"], accept_multiple_files=True)
-    
-    if files:
-        if st.button("Generate Now"):
-            for f in files:
-                img = Image.open(f)
-                st.image(img, width=300, caption=f.name)
+                if app_mode == "Metadata":
+                    # মেটাডেটা প্রম্পট
+                    meta_prompt = f"As a {platform} expert, give me a professional SEO Title (max {title_words} words) and exactly {keyword_count} relevant Keywords for this photo. Format: Just the Title, then the Keywords separated by commas. No serial numbers."
+                    response = model.generate_content([meta_prompt, img])
+                    
+                    # রেজাল্ট আলাদা করা (টাইটেল এবং ট্যাগ)
+                    full_text = response.text
+                    st.write("**📝 Generated Title:**")
+                    st.code(full_text.split("\n")[0].replace("Title:", "").strip(), language="text")
+                    
+                    st.write("**🏷️ Keywords (Comma Separated):**")
+                    # ট্যাগগুলো এক লাইনে কমা দিয়ে দেখানো
+                    keywords = full_text.replace(full_text.split("\n")[0], "").replace("Keywords:", "").strip()
+                    st.code(keywords, language="text")
                 
-                with st.spinner(f"Generating for {f.name}..."):
-                    model = genai.GenerativeModel('gemini-2.5-flash')
-                   
-                    response = model.generate_content([f"As a {platform} expert, give me a professional SEO Title and 40 relevant Keywords for this stock photo. Important: Do not use any serial numbers or bullets for keywords. Provide them separated by commas only.", img])
-                    st.subheader(f"Results for {f.name}")
-                    st.code(response.text)
-                    st.divider()
+                else:
+                    # Image to Prompt মোড
+                    prompt_gen = "Analyze this image and write a detailed AI generation prompt to recreate this image with midjourney or dall-e style. Include lighting and mood."
+                    response = model.generate_content([prompt_gen, img])
+                    
+                    st.write("**🎨 AI Image Prompt:**")
+                    st.code(response.text.strip(), language="text")
+            
+            except Exception as e:
+                st.error(f"Something went wrong: {e}")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.info("👈 Please upload an image to generate metadata or prompt.")
