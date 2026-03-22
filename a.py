@@ -1,10 +1,22 @@
 import streamlit as st
-from supabase import create_client, Client
+from supabase import create_client, Client # এটি ঠিক করা হয়েছে
 import google.generativeai as genai
 from PIL import Image
-import io
 
-# --- ১. সুপাবেস কানেকশন ---
+# --- ১. এপিআই ও মডেল কনফিগারেশন ---
+# আপনার CMD রেজাল্ট অনুযায়ী সরাসরি লেটেস্ট মডেলটি ব্যবহার করছি
+MODEL_NAME = 'gemini-2.0-flash' 
+
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    model = genai.GenerativeModel(
+        model_name=MODEL_NAME,
+        generation_config={"temperature": 0.7, "top_p": 0.95, "top_k": 40}
+    )
+else:
+    st.error("❌ API Key missing in Streamlit Secrets!")
+
+# --- ২. সুপাবেস কানেকশন ---
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
@@ -22,35 +34,30 @@ def save_user(email, password):
     data = {"email": email, "password": password, "status": "pending"}
     supabase.table("users").insert(data).execute()
 
-# --- ২. কনফিগারেশন ---
+# --- ৩. কনফিগারেশন ও ডিজাইন (CSS) ---
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
 
-if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    # মডেল কনফিগারেশন একটু আপডেট করা হয়েছে স্ট্যাবিলিটির জন্য
-    model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash',
-        generation_config={"temperature": 0.7, "top_p": 0.95, "top_k": 40}
-    )
-else:
-    st.error("❌ API Key missing in Secrets!")
-
-# --- ৩. ডিজাইন (CSS) - বাটন গ্যাপ এবং লুক ফিক্স ---
 st.markdown("""
     <style>
     .stAppViewMain { background-color: #050A0F !important; }
     .main-title { color: white; text-align: center; font-size: 26px !important; font-weight: 800; margin-bottom: 20px; }
     
-    /* কলামের গ্যাপ কমানো */
-    [data-testid="column"] { display: flex; justify-content: center; }
-    [data-testid="stHorizontalBlock"] { gap: 10px !important; }
+    /* বাটনগুলোর গ্যাপ কমানো এবং মাঝখানে আনা */
+    [data-testid="column"] { 
+        display: flex; 
+        justify-content: center; 
+        width: fit-content !important; 
+        flex: unset !important; 
+    }
+    [data-testid="stHorizontalBlock"] { gap: 8px !important; justify-content: center; }
 
     div.stButton > button {
         background-color: #333333 !important; 
         color: white !important;
         border: 1px solid #444444 !important;
-        padding: 10px 15px;
+        padding: 8px 12px;
         font-weight: bold;
+        border-radius: 5px;
     }
     div.stButton > button:hover { border-color: #00D1FF !important; color: #00D1FF !important; }
     .result-card { background-color: #121F2B; border: 1px solid #3E4C59; border-radius: 10px; padding: 20px; }
@@ -97,11 +104,11 @@ with st.sidebar:
 
 st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
 
-# প্ল্যাটফর্ম বাটন - গ্যাপ কমানো হয়েছে
-c1, c2, c3 = st.columns([1, 1, 1])
-with c1: st.button("ADOBE STOCK", use_container_width=True)
-with c2: st.button("FREEPIK", use_container_width=True)
-with c3: st.button("SHUTTERSTOCK", use_container_width=True)
+# প্ল্যাটফর্ম বাটন - নতুন কলাম সেটআপ
+c1, c2, c3, c4, c5 = st.columns([1,1,1,1,1]) # বেশি কলাম নিয়ে বাটনগুলো ছোট রাখা হয়েছে
+with c2: st.button("ADOBE STOCK", use_container_width=True)
+with c3: st.button("FREEPIK", use_container_width=True)
+with c4: st.button("SHUTTERSTOCK", use_container_width=True)
 
 st.write("---")
 
@@ -112,7 +119,6 @@ with left:
     uploaded_file = st.file_uploader("", type=['jpg','png','jpeg'], label_visibility="collapsed")
     if uploaded_file:
         raw_img = Image.open(uploaded_file)
-        # ইমেজ রিসাইজ করা (এপিআই স্পিড বাড়ানোর জন্য)
         if raw_img.width > 1000:
             raw_img.thumbnail((1000, 1000))
         st.image(raw_img, use_container_width=True)
@@ -122,13 +128,11 @@ with right:
     if uploaded_file and 'generate_clicked' in locals() and generate_clicked:
         with st.spinner("AI is working..."):
             try:
-                # প্রম্পট সেটআপ
                 if app_mode == "Image to Prompt":
                     full_prompt = "Create a detailed midjourney style prompt for this image."
                 else:
                     full_prompt = f"Give me a Professional SEO Title (max {title_words} words) and exactly {keyword_count} keywords separated by commas for this image."
                 
-                # কন্টেন্ট জেনারেট করা
                 response = model.generate_content([full_prompt, raw_img])
                 
                 if response.text:
@@ -140,9 +144,4 @@ with right:
                     st.error("AI couldn't generate text. Try another image.")
             
             except Exception as e:
-                # আসল এরর মেসেজটি দেখাবে যাতে আমরা বুঝতে পারি সমস্যা কোথায়
-                error_msg = str(e)
-                if "429" in error_msg:
-                    st.warning("⚠️ Quota limit reached. Please wait 1 minute and try again.")
-                else:
-                    st.error(f"❌ Error: {error_msg}")
+                st.error(f"❌ Error: {str(e)}")
