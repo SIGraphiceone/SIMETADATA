@@ -2,9 +2,9 @@ import streamlit as st
 from supabase import create_client, Client
 import google.generativeai as genai
 from PIL import Image
+import io
 
 # --- ১. সুপাবেস কানেকশন ---
-# নিশ্চিত করুন Streamlit Secrets-এ SUPABASE_URL এবং SUPABASE_KEY আছে
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
@@ -16,8 +16,7 @@ def load_users():
         for user in response.data:
             users_dict[user['email']] = {"password": user['password'], "status": user['status']}
         return users_dict
-    except:
-        return {}
+    except: return {}
 
 def save_user(email, password):
     data = {"email": email, "password": password, "status": "pending"}
@@ -26,39 +25,35 @@ def save_user(email, password):
 # --- ২. কনফিগারেশন ---
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
 
-# জেমিনি এপিআই সেটআপ
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # মডেল কনফিগারেশন একটু আপডেট করা হয়েছে স্ট্যাবিলিটির জন্য
+    model = genai.GenerativeModel(
+        model_name='gemini-1.5-flash',
+        generation_config={"temperature": 0.7, "top_p": 0.95, "top_k": 40}
+    )
 else:
-    st.error("❌ API Key missing in Secrets! Please check your GEMINI_API_KEY.")
+    st.error("❌ API Key missing in Secrets!")
 
-# --- ৩. ডিজাইন (CSS) - গ্রে বাটন ফিক্স ---
+# --- ৩. ডিজাইন (CSS) - বাটন গ্যাপ এবং লুক ফিক্স ---
 st.markdown("""
     <style>
     .stAppViewMain { background-color: #050A0F !important; }
-    .block-container { max-width: 90% !important; padding-top: 50px !important; }
-    .main-title { color: white; text-align: center; font-size: 26px !important; font-weight: 800; }
+    .main-title { color: white; text-align: center; font-size: 26px !important; font-weight: 800; margin-bottom: 20px; }
     
-    /* সব বাটনকে গ্রে কালার করা */
+    /* কলামের গ্যাপ কমানো */
+    [data-testid="column"] { display: flex; justify-content: center; }
+    [data-testid="stHorizontalBlock"] { gap: 10px !important; }
+
     div.stButton > button {
         background-color: #333333 !important; 
         color: white !important;
         border: 1px solid #444444 !important;
-        border-radius: 5px;
+        padding: 10px 15px;
         font-weight: bold;
-        width: 100%;
     }
-    div.stButton > button:hover {
-        background-color: #444444 !important;
-        border-color: #00D1FF !important;
-    }
-    .result-card {
-        background-color: #121F2B;
-        border: 1px solid #3E4C59;
-        border-radius: 10px;
-        padding: 20px;
-    }
+    div.stButton > button:hover { border-color: #00D1FF !important; color: #00D1FF !important; }
+    .result-card { background-color: #121F2B; border: 1px solid #3E4C59; border-radius: 10px; padding: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -69,22 +64,20 @@ if "logged_in" not in st.session_state:
 if not st.session_state.logged_in:
     choice = st.radio("Select Action:", ["Login", "Sign Up"], horizontal=True)
     if choice == "Login":
-        l_email = st.text_input("Email Address", key="login_email")
-        l_pass = st.text_input("Password", type="password", key="login_pass")
+        l_email = st.text_input("Email Address")
+        l_pass = st.text_input("Password", type="password")
         if st.button("Login Now"):
             users = load_users()
-            if l_email in users:
-                if users[l_email]["password"] == l_pass:
-                    if users[l_email]["status"] == "approved":
-                        st.session_state.logged_in = True
-                        st.rerun()
-                    else: st.warning("⚠️ Pending admin approval.")
-                else: st.error("❌ Wrong password.")
-            else: st.error("❌ Email not found.")
+            if l_email in users and users[l_email]["password"] == l_pass:
+                if users[l_email]["status"] == "approved":
+                    st.session_state.logged_in = True
+                    st.rerun()
+                else: st.warning("⚠️ Pending admin approval.")
+            else: st.error("❌ Invalid Credentials.")
         st.stop()
     else:
-        s_email = st.text_input("New Email", key="signup_email")
-        s_pass = st.text_input("New Password", type="password", key="signup_pass")
+        s_email = st.text_input("New Email")
+        s_pass = st.text_input("New Password", type="password")
         if st.button("Request Access"):
             if s_email and s_pass:
                 save_user(s_email, s_pass)
@@ -92,7 +85,7 @@ if not st.session_state.logged_in:
             else: st.error("❌ Fill all fields.")
         st.stop()
 
-# --- ৫. মেইন অ্যাপ (লগইন হলে এটি দেখাবে) ---
+# --- ৫. মেইন অ্যাপ ---
 with st.sidebar:
     st.markdown("<h3 style='color:#00D1FF; text-align:center;'>SIGRAPHICEONE</h3>", unsafe_allow_html=True)
     if st.button("Logout"):
@@ -104,11 +97,11 @@ with st.sidebar:
 
 st.markdown('<p class="main-title">SIGRAPHICEONE METADATA GENERATOR</p>', unsafe_allow_html=True)
 
-# প্ল্যাটফর্ম বাটন
-p_cols = st.columns(3)
-platforms = ["ADOBE STOCK", "FREEPIK", "SHUTTERSTOCK"]
-for i, p in enumerate(platforms):
-    with p_cols[i]: st.button(p, key=f"plat_{p}", use_container_width=True)
+# প্ল্যাটফর্ম বাটন - গ্যাপ কমানো হয়েছে
+c1, c2, c3 = st.columns([1, 1, 1])
+with c1: st.button("ADOBE STOCK", use_container_width=True)
+with c2: st.button("FREEPIK", use_container_width=True)
+with c3: st.button("SHUTTERSTOCK", use_container_width=True)
 
 st.write("---")
 
@@ -118,21 +111,38 @@ with left:
     st.markdown("##### 📤 Upload Image")
     uploaded_file = st.file_uploader("", type=['jpg','png','jpeg'], label_visibility="collapsed")
     if uploaded_file:
-        img = Image.open(uploaded_file)
-        st.image(img, use_container_width=True)
+        raw_img = Image.open(uploaded_file)
+        # ইমেজ রিসাইজ করা (এপিআই স্পিড বাড়ানোর জন্য)
+        if raw_img.width > 1000:
+            raw_img.thumbnail((1000, 1000))
+        st.image(raw_img, use_container_width=True)
         generate_clicked = st.button("🚀 GENERATE NOW")
+
 with right:
     if uploaded_file and 'generate_clicked' in locals() and generate_clicked:
         with st.spinner("AI is working..."):
             try:
-                prompt = f"Give me a Professional SEO Title (max {title_words} words) and {keyword_count} keywords. Separated by commas."
+                # প্রম্পট সেটআপ
                 if app_mode == "Image to Prompt":
-                    prompt = "Create a midjourney style prompt for this image."
+                    full_prompt = "Create a detailed midjourney style prompt for this image."
+                else:
+                    full_prompt = f"Give me a Professional SEO Title (max {title_words} words) and exactly {keyword_count} keywords separated by commas for this image."
                 
-                res = model.generate_content([prompt, img])
-                st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                st.write("**Results:**")
-                st.code(res.text, language="text")
-                st.markdown('</div>', unsafe_allow_html=True)
-            except:
-                st.warning("⚠️ API Quota Full or Error. Wait 30s.")
+                # কন্টেন্ট জেনারেট করা
+                response = model.generate_content([full_prompt, raw_img])
+                
+                if response.text:
+                    st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                    st.write("**Results:**")
+                    st.code(response.text, language="text")
+                    st.markdown('</div>', unsafe_allow_html=True)
+                else:
+                    st.error("AI couldn't generate text. Try another image.")
+            
+            except Exception as e:
+                # আসল এরর মেসেজটি দেখাবে যাতে আমরা বুঝতে পারি সমস্যা কোথায়
+                error_msg = str(e)
+                if "429" in error_msg:
+                    st.warning("⚠️ Quota limit reached. Please wait 1 minute and try again.")
+                else:
+                    st.error(f"❌ Error: {error_msg}")
