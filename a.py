@@ -26,8 +26,6 @@ def save_user(email, password):
 # --- ২. কনফিগারেশন ---
 st.set_page_config(page_title="SIGRAPHICEONE AI", layout="wide")
 
-st.write(f"My API Key starts with: {st.secrets['GEMINI_API_KEY'][:10]}")
-
 # জেমিনি এপিআই সেটআপ
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
