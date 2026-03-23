@@ -5,7 +5,7 @@ from PIL import Image
 
 # --- ১. এপিআই ও মডেল কনফিগারেশন ---
 # আপনার CMD রেজাল্ট অনুযায়ী সরাসরি লেটেস্ট মডেলটি ব্যবহার করছি
-MODEL_NAME = 'gemini-2.0-flash' 
+MODEL_NAME = 'gemini-2.5-flash' 
 
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
